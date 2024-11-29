@@ -1,84 +1,127 @@
-// runs in the context of a web page, can interact with DOM
-"use strict"
+// runs in the context of a web page, can interact with DOM. 
+// inject button into UI, send API request on click/keyboard shortcut
+const systemPrompt = `You are an AI assistant tasked with analyzing a user's prompt to identify the task type, objective, and main components. Enhance the prompt by improving clarity, specificity, and structure, ensuring the outcome is more professional and aligned with the user’s original intent. Follow a step-by-step approach to ensure each essential aspect of the task is addressed.
+**Do not provide an answer to the user's prompt. Only return an enhanced version of the prompt without any additional commentary.**
 
-console.log("Content script loaded");
+# Guidelines
+1. **Identify the Core Task**:
+   - Determine the primary goal or action required by the prompt.
+   - Avoid specific solutions or explanations; focus only on clarifying the task requirements.
 
+2. **Clarify Components and Terminology**:
+   - Identify key terms or elements that may need further definition or context to clarify the task.
+   - Provide only necessary instructions or specifications without solving or addressing the task directly.
+
+3. **Improve Structure and Flow**:
+   - Rephrase for better coherence and flow without changing the prompt’s intent.
+   - Ensure the instructions remain action-oriented, concise, and free from unnecessary detail.
+
+4. **Enhance Precision**:
+   - If relevant, suggest additional general steps or considerations for a thorough and professional approach to the task.
+   - Maintain a clear, functional tone without delving into specifics that would fulfill or solve the task.
+   
+# Output Format
+- Provide only the refined prompt, with enhanced clarity and structure and without any additional commentary.
+- Avoid any answers, explanations, or overly detailed guidance that may inadvertently solve the user’s prompt.
+- Do not modify any attachments, pasted content, or provided data from the user.
+
+# Examples
+- **Original Prompt**: "Determine the derivative of the function \( f(x) = 3x^4 - 5x^2 + 7x - 9 \)."
+- **Enhanced Prompt**: "Calculate the derivative of the function \( f(x) = 3x^4 - 5x^2 + 7x - 9 \). Outline each differentiation step clearly, specifying the rules applied to each term without solving for the final expression."
+
+- **Original Prompt**: "Create a step-by-step guide on how to set up a secure database connection."
+- **Enhanced Prompt**: "Provide instructions on setting up a secure database connection, addressing essential steps. Include guidelines for:
+    1. Authentication
+    2. Encryption
+    3. Access permissions. 
+    Explain step by step."
+
+- **Original Prompt**: "Explain the main features of climate change affecting coastal areas."
+- **Enhanced Prompt**: "Outline the primary features of climate change that impact coastal areas, covering factors such as:
+    - Rising sea levels
+    - Erosion
+    - Extreme weather
+    Describe each feature briefly and clearly explain your chain of thought."
+
+# Notes
+- Maintain the user’s original intent without changing the task.
+- Avoid any unnecessary specificity that could result in completing or solving the task.
+- Maintain the user’s tone and style, using a professional tone only if specified.
+- Do not modify or interfere with any pasted attachments provided by the user.
+`
+
+// create AI session to call prompt api
+let session;
 (async function initializeAISession() {
   try {
-    console.log("Attempting to initialize AI session from content script...");
     const capabilities = (await ai.languageModel.capabilities());
-    console.log("AI Capabilities:", capabilities);
 
-    if (capabilities.available == 'readily') {
-      const session = await ai.languageModel.create({
-        monitor(monitor) {
-          monitor.addEventListener("downloadprogress", (event) => {
-            console.log(`Downloaded ${event.loaded} of ${event.total} bytes.`);
-          });
-        },
+    if(capabilities.available){
+      session = await ai.languageModel.create({
+        systemPrompt: systemPrompt
       });
-      console.log("AI session successfully created:", session);
-    } else {
-      console.log("AI capabilities are not available in this environment.");
     }
+
   } catch (error) {
-    console.error("Error initializing AI session from content script:", error);
+    console.log("Error initializing AI session", error);
   }
 })();
 
-
 // inject reprompt element
 function addCustomButton() {
-  // Look for the send button container
-  const sendButtonContainer = document.querySelector("div.mb-1.me-1");
+  // Look for the send button
+  const sendButton = document.querySelector("button[data-testid='send-button']");
 
-  //add button if not added yet
-  if (sendButtonContainer && !document.querySelector(".extra-button")) {
-      // Create new button for ease of use
+  // add button if not added yet
+  if (sendButton && !document.querySelector(".extra-button")) {
       const newButton = document.createElement("button");
-      newButton.classList.add("extra-button"); // Add a custom class for styling
+      newButton.classList.add("extra-button"); // custom class for styling
       newButton.style.border = "none";
       newButton.style.cursor = "pointer";
       newButton.style.padding = "0";
-      newButton.style.marginRight = "7px"; 
+      newButton.style.marginRight = "8px"; 
       newButton.style.transition = "background-color 0.3s ease";
 
-      newButton.title = "Enhance Prompt"; // Hover text for button
+      newButton.title = "Enhance Prompt"; // Hover text 
 
-      // Create an img element to hold the icon
       const iconImg = document.createElement("img");
       iconImg.src = chrome.runtime.getURL("favicon-32x32.png");
       iconImg.alt = "Reprompt";
       iconImg.style.width = "32px";
       iconImg.style.height = "32px";
-      iconImg.style.display = "block"; // Ensure it displays as a block element
+      iconImg.style.display = "block"; 
 
       // Make the image circular
-      iconImg.style.borderRadius = "50%";  
+      iconImg.style.borderRadius = "50%";
 
       // Append the image to the button
       newButton.appendChild(iconImg);
 
-      // onclick
       newButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        modifyPromptElement();
+          e.preventDefault();
+          modifyPromptElement();
       });
 
-      sendButtonContainer.parentNode.insertBefore(newButton, sendButtonContainer);
+      sendButton.parentNode.insertBefore(newButton, sendButton);
 
-      // hover color
+      const parentContainer = sendButton.parentNode;
+      if (parentContainer.style.display !== "flex") {
+          parentContainer.style.display = "flex"; 
+          parentContainer.style.flexShrink = "0"; // FIXME P button moving to middle after send button un-disabled and text comes
+      }
+
+      // Hover effects
       newButton.addEventListener("mouseenter", () => {
-        if (newButton.style.backgroundColor !== "red" && 
-            newButton.style.backgroundColor !== "blue") {
-          newButton.style.backgroundColor = "#e0e0e0";
-        }
+          if (newButton.style.backgroundColor !== "red" &&
+              newButton.style.backgroundColor !== "blue") {
+              newButton.style.backgroundColor = "#e0e0e0";
+          }
       });
       newButton.addEventListener("mouseleave", () => {
-        if (newButton.style.backgroundColor !== "red" && 
-            newButton.style.backgroundColor !== "blue") {
-          newButton.style.backgroundColor = "transparent";
-        }
+          if (newButton.style.backgroundColor !== "red" &&
+              newButton.style.backgroundColor !== "blue") {
+              newButton.style.backgroundColor = "transparent";
+          }
       });
 
   }
@@ -104,7 +147,7 @@ function showErrorMessage(button, errorText) {
   const errorDiv = document.createElement('div');
   errorDiv.textContent = errorText;
   
-  // Style the error message
+  // Style error message
   Object.assign(errorDiv.style, {
     position: 'absolute',
     bottom: '100%', // above the button
@@ -123,7 +166,6 @@ function showErrorMessage(button, errorText) {
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
   });
 
-  // Add to DOM
   button.style.position = 'relative'; 
   button.appendChild(errorDiv);
 
@@ -186,21 +228,13 @@ async function modifyPromptElement() {
       throw new Error("Prompt must be between 10-2000 characters");;
     }
 
-    // get modified prompt
-    const response = await chrome.runtime.sendMessage({
-      action: "makeApiCall",
-      promptText: promptText
-    });
+    const response = await session.prompt(promptText);
 
-    if (response.error) {
+    if (!response) {
       throw new Error(response.error);
     }
 
-    if (!response.data) {
-      throw new Error("No data returned from our side :(");
-    }
-
-    promptElement.textContent = response.data; // update text if successful API call
+    promptElement.textContent = response; // update text if successful API call
     // reset button color after success 
     if (button) {
       setTimeout(() => {
@@ -215,6 +249,7 @@ async function modifyPromptElement() {
       button.style.backgroundColor = "red";
       let message = error.message;
       showErrorMessage(button, knownErrors.includes(message) ? message : "Unknown error occurred - try reloading");
+      console.log("err", error.message)
       setTimeout(() => {
         button.style.backgroundColor = "transparent";
       }, 1800); // reset after 2 seconds for errors
