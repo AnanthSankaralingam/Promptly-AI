@@ -1,6 +1,32 @@
 // runs in the context of a web page, can interact with DOM
 "use strict"
 
+console.log("Content script loaded");
+
+(async function initializeAISession() {
+  try {
+    console.log("Attempting to initialize AI session from content script...");
+    const capabilities = (await ai.languageModel.capabilities());
+    console.log("AI Capabilities:", capabilities);
+
+    if (capabilities.available == 'readily') {
+      const session = await ai.languageModel.create({
+        monitor(monitor) {
+          monitor.addEventListener("downloadprogress", (event) => {
+            console.log(`Downloaded ${event.loaded} of ${event.total} bytes.`);
+          });
+        },
+      });
+      console.log("AI session successfully created:", session);
+    } else {
+      console.log("AI capabilities are not available in this environment.");
+    }
+  } catch (error) {
+    console.error("Error initializing AI session from content script:", error);
+  }
+})();
+
+
 // inject reprompt element
 function addCustomButton() {
   // Look for the send button container
