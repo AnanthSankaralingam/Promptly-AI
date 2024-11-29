@@ -1,2 +1,0 @@
-# Encourage-AI
-Chrome extension 
