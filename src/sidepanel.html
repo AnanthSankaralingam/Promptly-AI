@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="styles/popup.css">
+  </head>
+  <body class="gradient-background">
+    <div class="container gradient-background">
+      <h1 class="input-textarea">Saved Prompts</h1>
+      <textarea id="new-prompt" rows="3" cols="25" placeholder="Enter a new prompt..." class="input-textarea"></textarea>
+      <button id="add-prompt" class="blue-button input-textarea">Add Prompt</button>
+      <!-- <button id="add-current" class="blue-buttoninput-textarea">Add Current</button> -->
+
+      <h2 class="input-textarea">Your Prompts</h2>
+      <ul id="prompt-list" class="prompt-list"></ul>
+
+      <p id="error-message" class="error-message hidden input-textarea">You can only save up to 5 prompts.</p>
+    </div>
+
+    <script src="scripts/sidepanel.js"></script>
+  </body>
+</html>
