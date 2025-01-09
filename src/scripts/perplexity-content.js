@@ -211,9 +211,10 @@ async function modifyPromptElement() {
     if (button) {
       button.style.backgroundColor = "blue";
     }
+    
     const promptElement = document.querySelector(
       "textarea.overflow-auto.max-h-\\[45vh\\].lg\\:max-h-\\[40vh\\].sm\\:max-h-\\[25vh\\].outline-none.w-full.font-sans.caret-superDuper.resize-none.selection\\:bg-superDuper.selection\\:text-textMain.dark\\:bg-offsetDark.dark\\:text-textMainDark.dark\\:placeholder-textOffDark.bg-background.text-textMain.placeholder-textOff.scrollbar-thumb-idle.dark\\:scrollbar-thumb-idleDark.scrollbar-thin.scrollbar-track-transparent"
-    ) || document.querySelector('textarea[placeholder="Ask follow-up"]'); // get text
+    ) || document.querySelector('textarea[placeholder="Ask follow-up"]');
 
     if (!promptElement) {
       throw new Error("Prompt textarea not found");
@@ -221,20 +222,40 @@ async function modifyPromptElement() {
 
     const promptText = promptElement.value.trim();
     
-    // check if prompt is too short or too long 
     if (promptText.length < 10 || promptText.length > 2500) {
       throw new Error("Prompt must be between 10-2000 characters");
     }
 
-    // get modified prompt
-    const response = await session.prompt(promptText);
+    const response = await chrome.runtime.sendMessage({
+      action: "makeApiCall",
+      promptText: promptText
+    });
 
-    if (!response) {
+    if (response.error) {
       throw new Error(response.error);
     }
 
-    promptElement.value = response; // update text if successful API call
+    if (!response.data) {
+      throw new Error("No data returned from API");
+    }
+
+    // Update the textarea value
+    promptElement.value = response.data;
     
+    // Trigger input event to update any listeners
+    const inputEvent = new Event('input', { bubbles: true });
+    promptElement.dispatchEvent(inputEvent);
+    
+    // Update React's internal state if it exists
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+    if (nativeInputValueSetter) {
+      nativeInputValueSetter.call(promptElement, response.data);
+    }
+    
+    // Force React to update the element
+    const changeEvent = new Event('change', { bubbles: true });
+    promptElement.dispatchEvent(changeEvent);
+
     // reset button color after success 
     if (button) {
       setTimeout(() => {
@@ -251,7 +272,7 @@ async function modifyPromptElement() {
       showErrorMessage(button, knownErrors.includes(message) ? message : "Unknown error occurred - try reloading");
       setTimeout(() => {
         button.style.backgroundColor = "transparent";
-      }, 1800); // reset after 2 seconds for errors
+      }, 1800);
     }
   } 
 }
